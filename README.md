@@ -2,6 +2,16 @@ Ctrl+F搜索标签
 [子文章]
 [Git]
 
+**大目录：**
+[JDK JRE JVM]
+[Java注释]
+[匿名内部类]
+[Lambda表达式]
+[Java Stream流]
+[面向对象]
+[Java IO]
+[多线程]
+
 # ● JDK JRE JVM
 
 三者关系：JDK > JRE > JVM
@@ -2564,6 +2574,73 @@ public class WaitAndNotifyThread {
         }
     }
 }
+```
+
+**使用Lock锁实现阻塞队列：**
+开始业务时一般有两个及以上的线程
+一半用来put放任务的线程
+一半用来take取任务的线程
+
+可以模拟两条生产线
+put生产线有任务时会呼唤take生产线
+反之则亦然
+
+当put生产线任务满了 会自动睡眠 释放锁 此时take生产线就可以为所欲为了
+当take生产线没有任务时 会自动睡眠 释放锁 此时put就可以拿到锁放置任务
+
+```java
+/**
+     * 阻塞队列的锁 防止任务入队列被挤爆发生数据错乱
+     * isEmpty --- take队列任务未满时 阻塞的条件
+     * isFull --- put队列满时 阻塞的条件
+     */
+    private static final ReentrantLock lock = new ReentrantLock();
+
+    private static final Condition isEmpty = lock.newCondition();
+
+    private static final Condition isFull = lock.newCondition();
+
+
+/**
+     * @param runnable 新增任务 需要放入队列
+     */
+    public void put(Runnable runnable) throws InterruptedException {
+        lock.lock(); //获取当前的锁
+        try {
+            while (size == capacity){ //循环判断队列是否满任务 防止假唤醒
+                System.out.println("Queue is full waiting...");
+                isFull.await();
+            }
+            tailQueue[tail] = runnable; //开始向队列中加入任务
+            tail = (tail + 1) % capacity; //尾指针后移 如果到尾部则循环回头部
+            size++; //队列任务数增加
+            isEmpty.signal(); //唤醒持队列接取任务锁的所有线程 让他们抢着接活
+        } finally {
+            lock.unlock(); //程序执行完释放锁
+        }
+    }
+
+
+/**
+     * 接取任务
+     * @return 有空闲线程[正式员工]可以接这个活
+     */
+    public Runnable take() throws InterruptedException {
+        lock.lock();
+        try {
+            while (size == 0) { //循环判断当前是否没有任务 没有则等待任务
+                System.out.println("Queue is empty waiting...");
+                isEmpty.await();
+            }
+            Runnable runnable = tailQueue[head]; //如果有任务则从队列头中拿取任务
+            head = (head + 1) % capacity; //进行头指针迭代
+            size--; //总任务数减少
+            isFull.signal(); //唤醒所有持有新增任务锁的线程开始增任务
+            return runnable; //返回这个活给线程[员工]哥干活
+        } finally {
+            lock.unlock();
+        }
+    }
 ```
 
 ### △ 阻塞队列实现等待唤醒机制
