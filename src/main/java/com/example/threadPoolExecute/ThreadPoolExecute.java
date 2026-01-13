@@ -2,6 +2,8 @@ package com.example.threadPoolExecute;
 
 import com.example.blockingQueue_.PoolBlockingQueue;
 import com.example.enum_.TimeTypeEnum;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ThreadPoolExecute {
     /**
@@ -42,6 +44,22 @@ public class ThreadPoolExecute {
      */
     private volatile PoolBlockingQueue workQueue;
 
+    /**
+     * 记录正式员工
+     */
+    private volatile List<Thread> formalThreads = new ArrayList<>();
+
+    /**
+     * 记录临时工
+     */
+    private volatile List<Thread> temporaryThreads = new ArrayList<>();
+
+    /**
+     * 线程池全局锁
+     * 保证execute执行三步走的原子性
+     */
+    private static final Object LOCK = new Object();
+
     public ThreadPoolExecute(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeTypeEnum unit, PoolBlockingQueue workQueue) {
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
@@ -50,16 +68,36 @@ public class ThreadPoolExecute {
         this.workQueue = workQueue;
 
         //开始抢活干 初始化时没有任务则会阻塞
-        startFactoryPool();
+        startFactoryPoolByFormal();
     }
 
     /**
      * 向线程池传入任务
+     * execute执行 判断关闭池-招募临时工-新增任务 三个步骤
+     * 加锁保证原子性
+     *
      * @param runnable 需要干的活
      */
     public void execute(Runnable runnable) {
         if (isShutdown)
             throw new RuntimeException("线程池已关闭，无法使用。");
+
+        //做限制条件 当正式员工在忙 仓库满仓 创建临时工 并且临时工+正式工不能大于总员工数
+        //比如说我现在20个任务 五个给常驻 剩15 往管道里塞了10个 还剩五个 当管道再赛第11个时 触发条件 满仓+常驻忙 = 创临时工
+        //满仓+临时工忙 但这时候 5常驻+5临时=最大线程
+        synchronized (LOCK) {
+            if (workQueue.queueIsFull() && (formalThreads.size() + temporaryThreads.size()) < maximumPoolSize) {
+                startFactoryPoolByTemporary();
+            }
+
+            //如果仓库满仓 正式员工+临时工都在忙并且达到人数总上限 则抛弃这个任务 不再添加这个任务
+            //满仓 常驻忙 临时满了忙 这时候仓库正好有10个任务 而仓库容量大小也是10 如果这时候再添加新任务就会报错
+            if (workQueue.queueIsFull()
+                    && (formalThreads.size() + temporaryThreads.size()) == maximumPoolSize) {
+                throw new RuntimeException("任务被抛弃");
+            }
+
+        }
 
         try {
             //向队列新增任务
@@ -72,15 +110,29 @@ public class ThreadPoolExecute {
     /**
      * 开始招募正式员工[常驻线程]开始抢活干
      */
-    private void startFactoryPool() {
-        for (int i = 0; i < corePoolSize; i++)
-            new FormalWorker().start();
+    private void startFactoryPoolByFormal() {
+        for (int i = 0; i < corePoolSize; i++) {
+            FormalWorker formalWorker = new FormalWorker();
+            formalThreads.add(formalWorker);
+            formalWorker.start();
+        }
+    }
+
+    /**
+     * 当满仓且正式员工都在忙时招募临时工
+     * 当满仓时一次只创建一个 不够再要
+     */
+    private void startFactoryPoolByTemporary() {
+        TemporaryWorker temporaryWorker = new TemporaryWorker();
+        temporaryThreads.add(temporaryWorker);
+        temporaryWorker.start();
     }
 
     /**
      * 销毁该线程池 让它再起不能
      */
-    private void shutdown() {
+    public void shutdown() {
+        System.out.println("ThreadPool execute shutdown");
         isShutdown = true;
     }
 
@@ -93,6 +145,30 @@ public class ThreadPoolExecute {
             try {
                 //指定的线程数死循环抢任务 直到线程池被销毁
                 while (!isShutdown) workQueue.take().run();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    /**
+     * 内部类表示临时工
+     * 临时工机制：当正式员工都在忙 仓库满仓时出生 但正式员工都在忙 仓库没满不创建
+     * poll方法超时阻塞 当临时工长期接不到活就会被解雇为null
+     */
+    private class TemporaryWorker extends Thread {
+        @Override
+        public void run() {
+            try {
+                while (!isShutdown) {
+                    Runnable poll = workQueue.poll(keepAliveTime, unit);
+                    if (poll != null) {
+                        poll.run();
+                    } else {
+                        temporaryThreads.remove(this);
+                        return;
+                    }
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

@@ -12,7 +12,19 @@ public enum TimeTypeEnum {
 
     public final long value;
 
+    private final Long nanos = 1_000_000_000L;
+
     TimeTypeEnum(Long s) {
         this.value = s;
+    }
+
+    /**
+     * 纳秒转换
+     * @param timeTypeEnum 时间单位
+     * @param keepAliveTime 时间单位数量
+     * @return 时间单位 * 单位数量 * 纳秒转换 返回纳秒
+     */
+    public static long toNanos(TimeTypeEnum timeTypeEnum, Long keepAliveTime) {
+        return (keepAliveTime * timeTypeEnum.value) * timeTypeEnum.nanos;
     }
 }

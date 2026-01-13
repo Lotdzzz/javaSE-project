@@ -14,16 +14,16 @@ public class ThreadPoolApplication {
      * 创建自定义线程池
      */
     public static ThreadPoolExecute threadPoolExecute = new ThreadPoolExecute(
-            5,                  // 核心线程数（正式工）：5个
-            10,                 // 最大线程数（总人数）：5正式+5临时
-            60,                  // 临时工空闲60秒就辞退
-            TimeTypeEnum.SECOND,   // 时间单位：秒
-            new PoolBlockingQueue(10) //自定义阻塞队列
+            5,                  // 核心线程数（正式工）：n个
+            10,                 // 最大线程数（总人数）：n正式+m临时
+            20,                  // 临时工空闲s单位就辞退
+            TimeTypeEnum.SECOND,   // 时间单位：单位
+            new PoolBlockingQueue(2) //自定义阻塞队列
     );
 
     public static void main(String[] args) {
 //        test1(threadPoolExecute);
-//        test2(threadPoolExecute);
+        test2(threadPoolExecute);
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.example.blockingQueue_;
 
+import com.example.enum_.TimeTypeEnum;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -37,6 +38,7 @@ public class PoolBlockingQueue {
      * 阻塞队列的锁 防止任务入队列被挤爆发生数据错乱
      * isEmpty --- take队列任务未满时 阻塞的条件
      * isFull --- put队列满时 阻塞的条件
+     * isTempEmpty --- 临时工的锁 当仓库没东西时 临时工用这个锁阻塞
      */
     private static final ReentrantLock lock = new ReentrantLock();
 
@@ -44,8 +46,11 @@ public class PoolBlockingQueue {
 
     private static final Condition isFull = lock.newCondition();
 
+    private static final Condition isTempEmpty = lock.newCondition();
+
     /**
      * 初始化队列
+     *
      * @param capacity 创建阻塞队列指定队列容量
      */
     public PoolBlockingQueue(int capacity) {
@@ -59,14 +64,16 @@ public class PoolBlockingQueue {
     public void put(Runnable runnable) throws InterruptedException {
         lock.lock(); //获取当前的锁
         try {
-            while (size == capacity){ //循环判断队列是否满任务 防止假唤醒
+            while (size == capacity) { //循环判断队列是否满任务 防止假唤醒
                 System.out.println("Queue is full waiting...");
                 isFull.await();
             }
             tailQueue[tail] = runnable; //开始向队列中加入任务
+            System.out.println("Put " + runnable);
             tail = (tail + 1) % capacity; //尾指针后移 如果到尾部则循环回头部
             size++; //队列任务数增加
             isEmpty.signal(); //唤醒持队列接取任务锁的所有线程 让他们抢着接活
+            isTempEmpty.signal(); //如果有临时工的话同时唤醒临时工
         } finally {
             lock.unlock(); //程序执行完释放锁
         }
@@ -74,6 +81,7 @@ public class PoolBlockingQueue {
 
     /**
      * 接取任务
+     *
      * @return 有空闲线程[正式员工]可以接这个活
      */
     public Runnable take() throws InterruptedException {
@@ -91,5 +99,44 @@ public class PoolBlockingQueue {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * 临时工接取任务 如果空闲等待的阻塞超时了 临时工直接返回null 解雇本临时工线程
+     *
+     * @param keepAliveTime 单位时间数量
+     * @param unit          时间单位
+     * @return 任务
+     */
+    public Runnable poll(long keepAliveTime, TimeTypeEnum unit) throws InterruptedException {
+        lock.lock();
+        //获取超市阻塞的时长（纳秒计算）超精确
+        long nanos = TimeTypeEnum.toNanos(unit, keepAliveTime);
+        try {
+            while (size == 0) {
+                //判断当前剩余时间纳秒是否到期
+                if (nanos <= 0) {
+                    System.out.println(Thread.currentThread().getName() + "Temp Worker destroy...");
+                    return null;
+                }
+                System.out.println("Temp : Queue is empty waiting...");
+                //使用awaitNanos返回阻塞剩余时间
+                nanos = isTempEmpty.awaitNanos(nanos);
+            }
+            Runnable runnable = tailQueue[head];
+            head = (head + 1) % capacity;
+            size--;
+            isFull.signal();
+            return runnable;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * 判断当前仓库是否满仓
+     */
+    public synchronized boolean queueIsFull() {
+        return size == capacity;
     }
 }
