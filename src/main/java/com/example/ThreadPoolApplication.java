@@ -3,6 +3,7 @@ package com.example;
 import com.example.blockingQueue_.PoolBlockingQueue;
 import com.example.enum_.TimeTypeEnum;
 import com.example.threadPoolExecute.ThreadPoolExecute;
+
 import java.util.Scanner;
 
 /**
@@ -18,12 +19,69 @@ public class ThreadPoolApplication {
             10,                 // 最大线程数（总人数）：n正式+m临时
             20,                  // 临时工空闲s单位就辞退
             TimeTypeEnum.SECOND,   // 时间单位：单位
-            new PoolBlockingQueue(2) //自定义阻塞队列
+            new PoolBlockingQueue(10) //自定义阻塞队列
     );
 
     public static void main(String[] args) {
 //        test1(threadPoolExecute);
-        test2(threadPoolExecute);
+//        test2(threadPoolExecute);
+//        test3(new PoolBlockingQueue(10));
+    }
+
+    /**
+     * 阻塞队列测试
+     *
+     * @param poolBlockingQueue 阻塞队列
+     */
+    public static void test3(PoolBlockingQueue poolBlockingQueue) {
+        //新增任务
+        new Thread(() -> {
+            for (int i = 0; i < 13; i++) {
+                try {
+                    poolBlockingQueue.put(() -> {
+                        System.out.println(Thread.currentThread().getName() + "----" + "在干活中...");
+                        try {
+                            Thread.sleep(10000);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
+
+        //执行任务
+        new Thread(() -> {
+            while (true) {
+                try {
+                    poolBlockingQueue.take().run();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
+
+        new Thread(() -> {
+            while (true) {
+                try {
+                    poolBlockingQueue.take().run();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
+
+        new Thread(() -> {
+            while (true) {
+                try {
+                    poolBlockingQueue.take().run();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
     }
 
     /**
