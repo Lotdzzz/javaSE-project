@@ -19,13 +19,13 @@ public class ThreadPoolApplication {
             10,                 // 最大线程数（总人数）：n正式+m临时
             20,                  // 临时工空闲s单位就辞退
             TimeTypeEnum.SECOND,   // 时间单位：单位
-            new PoolBlockingQueue(10) //自定义阻塞队列
+            new PoolBlockingQueue<>(10) //自定义阻塞队列
     );
 
     public static void main(String[] args) {
-//        test1(threadPoolExecute);
+        test1(threadPoolExecute);
 //        test2(threadPoolExecute);
-//        test3(new PoolBlockingQueue(10));
+//        test3(new PoolBlockingQueue<>(10));
     }
 
     /**
@@ -33,7 +33,7 @@ public class ThreadPoolApplication {
      *
      * @param poolBlockingQueue 阻塞队列
      */
-    public static void test3(PoolBlockingQueue poolBlockingQueue) {
+    public static void test3(PoolBlockingQueue<Runnable> poolBlockingQueue) {
         //新增任务
         new Thread(() -> {
             for (int i = 0; i < 13; i++) {
@@ -97,7 +97,7 @@ public class ThreadPoolApplication {
                     threadPoolExecute.execute(() -> {
                         System.out.println(Thread.currentThread().getName() + "----" + "在干活中...");
                         try {
-                            Thread.sleep(10000);
+                            Thread.sleep(1000000);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }

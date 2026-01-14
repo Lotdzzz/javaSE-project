@@ -1,15 +1,17 @@
 package com.example.blockingQueue_;
 
 import com.example.enum_.TimeTypeEnum;
+
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class PoolBlockingQueue {
+@SuppressWarnings("unchecked ")
+public class PoolBlockingQueue<T> {
 
     /**
      * 阻塞队列：任务仓库，最多放capacity个任务（有界）
      */
-    private final Runnable[] tailQueue;
+    private final Object[] tailQueue;
 
     /**
      * 指定最大任务数
@@ -45,6 +47,7 @@ public class PoolBlockingQueue {
     private final Condition putLock;
 
     private final Condition takeLock;
+
     /**
      * 初始化队列
      *
@@ -52,7 +55,7 @@ public class PoolBlockingQueue {
      */
     public PoolBlockingQueue(int capacity) {
         this.capacity = capacity;
-        this.tailQueue = new Runnable[capacity];
+        this.tailQueue = new Object[capacity];
         this.lock = new ReentrantLock();
         this.putLock = lock.newCondition();
         this.takeLock = lock.newCondition();
@@ -62,18 +65,16 @@ public class PoolBlockingQueue {
     }
 
     /**
-     * @param runnable 新增任务 需要放入队列
+     * @param t 新增任务 需要放入队列
      */
-    public void put(Runnable runnable) throws InterruptedException {
+    public void put(T t) throws InterruptedException {
         lock.lock(); //获取当前的锁
         try {
             while (queueIsFull()) { //循环判断队列是否满任务 防止假唤醒
                 System.out.println("Queue is full waiting...");
                 putLock.await();
             }
-            tailQueue[tail] = runnable; //开始向队列中加入任务
-            System.out.println("Put " + runnable);
-            Thread.sleep(500);
+            tailQueue[tail] = t; //开始向队列中加入任务
             tail = (tail + 1) % capacity; //尾指针后移 如果到尾部则循环回头部
             size++; //队列任务数增加
             takeLock.signal(); //唤醒持队列接取任务锁的所有线程 让他们抢着接活
@@ -87,19 +88,18 @@ public class PoolBlockingQueue {
      *
      * @return 有空闲线程[正式员工]可以接这个活
      */
-    public Runnable take() throws InterruptedException {
+    public T take() throws InterruptedException {
         lock.lock();
         try {
             while (queueIsEmpty()) { //循环判断当前是否没有任务 没有则等待任务
                 System.out.println("Queue is empty waiting...");
                 takeLock.await();
             }
-            Runnable runnable = tailQueue[head]; //如果有任务则从队列头中拿取任务
-            System.out.println("Take " + runnable);
+            T t = (T) tailQueue[head]; //如果有任务则从队列头中拿取任务
             head = (head + 1) % capacity; //进行头指针迭代
             size--; //总任务数减少
             putLock.signal(); //唤醒所有持有新增任务锁的线程开始增任务
-            return runnable; //返回这个活给线程[员工]哥干活
+            return t; //返回这个活给线程[员工]哥干活
         } finally {
             lock.unlock();
         }
@@ -112,7 +112,7 @@ public class PoolBlockingQueue {
      * @param unit          时间单位
      * @return 任务
      */
-    public Runnable poll(long keepAliveTime, TimeTypeEnum unit) throws InterruptedException {
+    public T poll(long keepAliveTime, TimeTypeEnum unit) throws InterruptedException {
         lock.lock();
         //获取超市阻塞的时长（纳秒计算）超精确
         long nanos = TimeTypeEnum.toNanos(unit, keepAliveTime);
@@ -127,11 +127,11 @@ public class PoolBlockingQueue {
                 //使用awaitNanos返回阻塞剩余时间
                 nanos = takeLock.awaitNanos(nanos);
             }
-            Runnable runnable = tailQueue[head];
+            T t = (T) tailQueue[head];
             head = (head + 1) % capacity;
             size--;
             putLock.signal();
-            return runnable;
+            return t;
         } finally {
             lock.unlock();
         }
