@@ -23,9 +23,39 @@ public class ThreadPoolApplication {
     );
 
     public static void main(String[] args) {
-        test1(threadPoolExecute);
+//        test1(threadPoolExecute);
 //        test2(threadPoolExecute);
 //        test3(new PoolBlockingQueue<>(10));
+        test4();
+    }
+
+    /**
+     * 多个线程池并发
+     */
+    public static void test4() {
+        for (int i = 0; i < 10; i++) {
+            new Thread(() -> {
+                ThreadPoolExecute threadPoolExecute = new ThreadPoolExecute(
+                        5,
+                        10,
+                        20,
+                        TimeTypeEnum.SECOND,
+                        new PoolBlockingQueue<>(10));
+
+                new Thread(() -> {
+                    for (int i1 = 0; i1 < 20; i1++) {
+                        threadPoolExecute.execute(() -> {
+                            try {
+                                Thread.sleep(10000);
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
+                            System.out.println(Thread.currentThread().getName() + "已完工");
+                        });
+                    }
+                }).start();
+            }).start();
+        }
     }
 
     /**
@@ -39,12 +69,12 @@ public class ThreadPoolApplication {
             for (int i = 0; i < 13; i++) {
                 try {
                     poolBlockingQueue.put(() -> {
-                        System.out.println(Thread.currentThread().getName() + "----" + "在干活中...");
                         try {
                             Thread.sleep(10000);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
+                        System.out.println(Thread.currentThread().getName() + "----" + "完工...");
                     });
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);

@@ -91,6 +91,7 @@ public class ThreadPoolExecute {
             throw new NullPointerException("任务为空，无法载入。");
 
         synchronized (LOCK) {
+
             if (workQueue.queueIsFull() && (formalThreads.size() + temporaryThreads.size()) < maximumPoolSize) {
                 //一次创建一个临时工
                 startFactoryPoolByTemporary(runnable);
@@ -119,7 +120,7 @@ public class ThreadPoolExecute {
      */
     private void startFactoryPoolByFormal() {
         for (int i = 0; i < corePoolSize; i++) {
-            FormalWorker formalWorker = new FormalWorker();
+            FormalWorker formalWorker = new FormalWorker(null);
             formalThreads.add(formalWorker);
             formalWorker.start();
         }
@@ -139,8 +140,12 @@ public class ThreadPoolExecute {
      * 销毁该线程池 让它再起不能
      */
     public void shutdown() {
-        System.out.println("ThreadPool execute shutdown");
         isShutdown = true;
+        //销毁常驻线程
+        formalThreads.forEach(Thread::interrupt);
+        //销毁临时线程
+        temporaryThreads.forEach(Thread::interrupt);
+        System.out.println("ThreadPool execute shutdown");
     }
 
     /**
@@ -148,11 +153,24 @@ public class ThreadPoolExecute {
      */
     private class FormalWorker extends Thread {
 
+        private Runnable task;
+
+        public FormalWorker(Runnable task) {
+            this.task = task;
+        }
+
         @Override
         public void run() {
             try {
                 //指定的线程数死循环抢任务 直到线程池被销毁
-                while (!isShutdown) workQueue.take().run();
+                while (!isShutdown) {
+                    if (task != null) {
+                        task.run();
+                        task = null;
+                        continue;
+                    }
+                    workQueue.take().run();
+                }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }

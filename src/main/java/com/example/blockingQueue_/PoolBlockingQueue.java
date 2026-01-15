@@ -71,7 +71,6 @@ public class PoolBlockingQueue<T> {
         lock.lock(); //获取当前的锁
         try {
             while (queueIsFull()) { //循环判断队列是否满任务 防止假唤醒
-                System.out.println("Queue is full waiting...");
                 putLock.await();
             }
             tailQueue[tail] = t; //开始向队列中加入任务
@@ -92,7 +91,6 @@ public class PoolBlockingQueue<T> {
         lock.lock();
         try {
             while (queueIsEmpty()) { //循环判断当前是否没有任务 没有则等待任务
-                System.out.println("Queue is empty waiting...");
                 takeLock.await();
             }
             T t = (T) tailQueue[head]; //如果有任务则从队列头中拿取任务
@@ -120,10 +118,8 @@ public class PoolBlockingQueue<T> {
             while (queueIsEmpty()) {
                 //判断当前剩余时间纳秒是否到期
                 if (nanos <= 0) {
-                    System.out.println(Thread.currentThread().getName() + "Temp Worker destroy...");
                     return null;
                 }
-                System.out.println("Temp : Queue is empty waiting...");
                 //使用awaitNanos返回阻塞剩余时间
                 nanos = takeLock.awaitNanos(nanos);
             }

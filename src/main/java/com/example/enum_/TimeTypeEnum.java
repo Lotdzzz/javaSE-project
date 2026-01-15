@@ -12,7 +12,7 @@ public enum TimeTypeEnum {
 
     public final long value;
 
-    private final Long nanos = 1_000_000_000L;
+    private final long nanos = 1_000_000_000L;
 
     TimeTypeEnum(Long s) {
         this.value = s;
