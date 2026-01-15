@@ -2,10 +2,12 @@ package com.example.threadPoolExecute;
 
 import com.example.blockingQueue_.PoolBlockingQueue;
 import com.example.enum_.TimeTypeEnum;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class ThreadPoolExecute {
     /**
      * corePoolSize
@@ -63,6 +65,7 @@ public class ThreadPoolExecute {
     private final Object LOCK = new Object();
 
     public ThreadPoolExecute(int corePoolSize, int maximumPoolSize, long keepAliveTime, TimeTypeEnum unit, PoolBlockingQueue<Runnable> workQueue) {
+        log.info("{} ThreadPool Init...", Thread.currentThread().getName());
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
         this.keepAliveTime = keepAliveTime;
@@ -91,7 +94,6 @@ public class ThreadPoolExecute {
             throw new NullPointerException("任务为空，无法载入。");
 
         synchronized (LOCK) {
-
             if (workQueue.queueIsFull() && (formalThreads.size() + temporaryThreads.size()) < maximumPoolSize) {
                 //一次创建一个临时工
                 startFactoryPoolByTemporary(runnable);
@@ -145,7 +147,7 @@ public class ThreadPoolExecute {
         formalThreads.forEach(Thread::interrupt);
         //销毁临时线程
         temporaryThreads.forEach(Thread::interrupt);
-        System.out.println("ThreadPool execute shutdown");
+        log.info("{} ThreadPool Shutdown...", Thread.currentThread().getName());
     }
 
     /**

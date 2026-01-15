@@ -1,11 +1,13 @@
 package com.example.blockingQueue_;
 
 import com.example.enum_.TimeTypeEnum;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 @SuppressWarnings("unchecked ")
+@Slf4j
 public class PoolBlockingQueue<T> {
 
     /**
@@ -71,7 +73,8 @@ public class PoolBlockingQueue<T> {
         lock.lock(); //获取当前的锁
         try {
             while (queueIsFull()) { //循环判断队列是否满任务 防止假唤醒
-                putLock.await();
+                log.info("{}: queue is full", Thread.currentThread().getName()); //只要临时工和拒绝策略存在 这个应该执行不到
+                putLock.await(); //恒饥饿状态
             }
             tailQueue[tail] = t; //开始向队列中加入任务
             tail = (tail + 1) % capacity; //尾指针后移 如果到尾部则循环回头部
@@ -91,6 +94,7 @@ public class PoolBlockingQueue<T> {
         lock.lock();
         try {
             while (queueIsEmpty()) { //循环判断当前是否没有任务 没有则等待任务
+                log.info("{} queue is empty", Thread.currentThread().getName());
                 takeLock.await();
             }
             T t = (T) tailQueue[head]; //如果有任务则从队列头中拿取任务
@@ -118,9 +122,11 @@ public class PoolBlockingQueue<T> {
             while (queueIsEmpty()) {
                 //判断当前剩余时间纳秒是否到期
                 if (nanos <= 0) {
+                    log.info("{} Temp thread is destroy", Thread.currentThread().getName());
                     return null;
                 }
                 //使用awaitNanos返回阻塞剩余时间
+                log.info("{} Temp thread is empty", Thread.currentThread().getName());
                 nanos = takeLock.awaitNanos(nanos);
             }
             T t = (T) tailQueue[head];

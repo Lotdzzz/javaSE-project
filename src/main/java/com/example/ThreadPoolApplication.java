@@ -24,9 +24,9 @@ public class ThreadPoolApplication {
 
     public static void main(String[] args) {
 //        test1(threadPoolExecute);
-//        test2(threadPoolExecute);
+        test2(threadPoolExecute);
 //        test3(new PoolBlockingQueue<>(10));
-        test4();
+//        test4();
     }
 
     /**
