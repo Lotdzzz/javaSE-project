@@ -1,0 +1,24 @@
+# IDEA的缓存/配置文件，必忽略
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+target/
+
+# Java编译文件
+*.class
+
+# Maven/Gradle
+.mvn/
+gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# 日志文件
+*.log
+logs/
+
+# 系统缓存文件
+.DS_Store
+Thumbs.db
